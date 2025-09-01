@@ -1,0 +1,27 @@
+debug部分
+1475 df_plot，使用results/data_result.xlsx 替代能量桩数据download。。。避免错误 111
+1870 直接加载预训练结果，使用surrogate_os.pkl，避免与结果文件混淆 111
+1995 训练后所得surrogate.pkl的保存，保存到results/surrogate.pkl以便GA调用 避免混淆 111
+2014 GA model source更新（做成下拉选择）：model source里变成可以选择的surrogate_os.pkl或者是训练后所得存在results里面的surrogate.pkl 111
+
+打包时候的结构
+A. 大文件夹（根目录）需要有（除了本记事本外）：
+1. mystreamlit.py
+2. simulation.py
+3. 能量桩负荷数据.xlsx
+4. COP_heating.json
+5. COP_colding.json
+6. surrogate_os.pkl
+7. SA-EP-GSHP.png
+8. operating-modes.jpg
+9. data_sindy
+10. T_out.png
+11. mpc-equation.jpg
+12. cost-function.jpg
+13. final_constructure.png
+
+B. 建立一个results子文件夹用于存储运行后所得的系统文件，里面为空，用于存储
+data_results.xlsx
+X_samples.csv
+Y_samples.csv
+surrogate.pkl
