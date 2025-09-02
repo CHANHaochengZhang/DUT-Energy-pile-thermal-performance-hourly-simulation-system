@@ -112,76 +112,392 @@ if st.session_state['page'] == 0:
 
 elif st.session_state['page'] == 1:
     if st.button('返回首页', key='back_home_X'):
-        st.session_state['page'] = 0
-        st.rerun()
-    st.title('1. 全年逐小时负荷曲线可视化')
-    # st.write("当前工作目录：", os.getcwd())
-    # st.write("当前目录下的文件：", os.listdir())
-    st.markdown("""
-**本页内容：**
-- 用户输入全年负荷文件并观察全年负荷曲线
-    """)
-    st.write('请上传包含全年8761小时负荷数据的CSV或Excel文件。')
-    st.info('文件要求：\n- 必须为8761行、1列的逐小时负荷数据（第1行为1月1日0点，第8761行为次年1月1日0点）。\n- 可无列名。')
-    st.markdown('<span style="color:red; font-weight:bold;">可直接使用默认建筑负荷文件进行体验。</span>', unsafe_allow_html=True)
-    colA, colB = st.columns(2)
-    with colA:
-        use_default = st.button("使用默认建筑负荷文件", key="btn_default_load")
-    with colB:
-        upload_mode = st.button("上传全年逐时建筑负荷文件", key="btn_upload_load")
+            st.session_state['page'] = 0
+            st.rerun()
 
-    import pandas as pd
+    st.title("1. 建筑冷热负荷全年逐时数据加载")
+    st.markdown("### 在本页面进行建筑冷热负荷全年逐时数据上传与加载")
+
+    # ===== 左侧栏 =====
+    with st.sidebar.form("file_form"):
+        st.subheader("📂 文件操作")
+        st.markdown("""
+        **说明：**
+        - 上传全年8761小时逐时负荷数据 (CSV/Excel)
+        - 或直接使用默认文件体验
+        """)
+        st.info("文件要求：\n- 必须为8761行、1列数据。\n- 第1行为1月1日0点，第8761行为次年1月1日0点。")
+        st.markdown("""
+        **⚠️ 选择默认使用文件或选择上传文件后请点击【确认选择】按钮。**
+        """)
+
+        data_option = st.radio("请选择数据来源：", ("使用默认数据", "上传文件"))
+        uploaded_file = None
+        if data_option == "上传文件":
+            uploaded_file = st.file_uploader("上传文件 (CSV/Excel)", type=["csv", "xlsx"])
+
+        # 保存选择到 session_state
+        submitted = st.form_submit_button("确认选择")
+        if submitted:
+            st.session_state['data_option'] = data_option
+            st.session_state['uploaded_file'] = uploaded_file
+
+    # ===== 主界面 =====
     df = None
-    uploaded_file = None
-    if use_default:
-        try:
-            df = pd.read_excel("能量桩负荷数据.xlsx", header=None)
-            df.columns = ['Load']
-            st.success("已加载默认建筑负荷文件：能量桩负荷数据.xlsx")
-        except Exception as e:
-            st.error(f"默认文件加载失败: {e}")
-    elif upload_mode:
-        uploaded_file = st.file_uploader('上传负荷文件（CSV或Excel）', type=['csv', 'xlsx', 'xls'], key="file_uploader_load")
-        if uploaded_file is not None:
-            try:
-                if uploaded_file.name.endswith('.csv'):
-                    df = pd.read_csv(uploaded_file, header=None)
-                else:
-                    df = pd.read_excel(uploaded_file, header=None)
-                df.columns = ['Load']
-                st.success("已成功上传建筑负荷文件！")
-            except Exception as e:
-                st.error(f"文件读取失败: {e}")
+    st.markdown("### 📂 文件加载")
+    load_button = st.button("🚀 点击进行文件加载")
 
-    if df is not None:
-        st.write('文件预览：')
-        st.dataframe(df.head(5))
-        load_col = None
-        for col in df.columns:
-            if 'load' in str(col).lower() or '负荷' in str(col):
-                load_col = col
-                break
-        if load_col is None:
-            load_col = df.columns[0]
-        load_data = df[load_col].values
-        if len(load_data) != 8761:
-            st.error(f'检测到负荷数据长度为{len(load_data)}，但应为8761（全年逐小时+次年1月1日0点）。请检查文件！')
+    if load_button:
+        option = st.session_state.get('data_option', None)
+        uploaded_file = st.session_state.get('uploaded_file', None)
+
+        if option == "使用默认数据":
+            try:
+                df = pd.read_excel("能量桩负荷数据.xlsx", header=None)
+                df.columns = ["Load"]
+                st.success("✅ 已加载默认建筑负荷文件：能量桩负荷数据.xlsx")
+            except Exception as e:
+                st.error(f"❌ 默认文件加载失败: {e}")
+
+        elif option == "上传文件":
+            if uploaded_file is None:
+                st.warning("⚠️ 请先上传文件！")
+            else:
+                try:
+                    if uploaded_file.name.endswith(".csv"):
+                        df = pd.read_csv(uploaded_file, header=None)
+                    else:
+                        df = pd.read_excel(uploaded_file, header=None)
+                    df.columns = ["Load"]
+                    st.success(f"✅ 文件上传成功: {uploaded_file.name}")
+                except Exception as e:
+                    st.error(f"❌ 文件读取失败: {e}")
         else:
-            import numpy as np
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(figsize=(14, 6))
-            x = range(len(load_data))
-            ax.plot(x, load_data, color='blue')
-            ax.set_xlabel('Days')
-            ax.set_ylabel('Load [kW]')
-            ax.set_title('Annual Hourly Load Curve')
-            day_ticks = list(range(0, 366, 50))
-            ax.set_xticks([d*24 for d in day_ticks])
-            ax.set_xticklabels([str(d) for d in day_ticks])
-            st.pyplot(fig)
+            st.warning("⚠️ 请先在左侧选择数据来源并确认！")
+
+    # ===== 文件预览 =====
+    with st.expander("👀 点击展开文件预览", expanded=False):
+        if df is None:
+            st.warning("⚠️ 请先点击上方【加载文件】按钮。")
+        else:
+            df_preview = df.head(5).rename(columns={df.columns[0]: "Load [kW]"})
+            df_preview.index.name = "Timestamp"
+            st.dataframe(df_preview, use_container_width=True)
+
+    # ===== 全年曲线 =====
+    with st.expander("📈 点击展开全年曲线可视化", expanded=False):
+        if df is None:
+            st.warning("⚠️ 请先点击上方【加载文件】按钮。")
+        else:
+            load_data = df['Load'].values
+            if len(load_data) != 8761:
+                st.error(
+                    f'❌ 检测到负荷数据长度为 {len(load_data)}，'
+                    '但应为 8761（全年逐小时+次年1月1日0点）。请检查文件！'
+                )
+            else:
+                fig, ax = plt.subplots(figsize=(12, 5))
+                ax.plot(load_data, color='blue', linewidth=1)
+                ax.set_xlabel('Hours')
+                ax.set_ylabel('Load [kW]')
+                ax.set_title('Annual Hourly Load Curve')
+                st.pyplot(fig)
+                
             st.success('已成功绘制全年负荷曲线！')
             st.session_state['Q'] = load_data.astype(float).copy() if isinstance(load_data, np.ndarray) else np.array(load_data, dtype=float)
+        
     page_nav()
+
+# elif st.session_state['page'] == 2:
+#         if st.button('返回首页', key='back_home_X'):
+#             st.session_state['page'] = 0
+#             st.rerun()
+#         st.title('2. 能量桩全年负荷模拟与参数设定')
+#         st.markdown("""
+#     **本页内容：**
+#     - 请在页面左侧输入土壤及螺旋管的相关设计参数
+#         """)
+#         st.markdown('<span style="color:red; font-weight:bold;">- 输入完成后将左侧参数栏拉至最底部点击"提交参数"按钮</span>', unsafe_allow_html=True)
+#         st.markdown('<span style="color:red; font-weight:bold;">- 本平台支持垂直方向设定多个均匀计算节点n作为桩壁温度输出，但设置n时需保证桩壁中点被包含</span>', unsafe_allow_html=True)
+
+#         # 预设城市数据（从Excel中读取）
+#         try:
+#             # 从提供的Excel内容中创建DataFrame
+#             city_df = pd.DataFrame({
+#                 "城市": ["大连", "郑州", "兰州", "武汉", "长沙", "杭州", "合肥", "西安", "太原"],
+#                 "供暖季开始时间": [45966, 45976, 45962, 45976, 45976, 45996, 45996, 45976, 45962],
+#                 "Tsavg": [12.25, 15.46, 12.58, 17.63, 17.15, 16.81, 16.08, 12.31, 12.23],
+#                 "Tamp1": [13.66, 14.16, 13.41, 13.25, 12.99, 13.24, 13.36, 12.26, 13.86],
+#                 "Tamp2": [0.993, 0.926, 0.933, 1.538, 1.308, 0.764, 1.277, 0.97, 0.308],
+#                 "PL1": [19.167, 13.796, 12.685, 17.454, 20.868, 21.354, 18.194, 13.032, 10.485],
+#                 "PL2": [-11.655, -17.384, -17.465, -20.602, -0.979, -1.99, 10.882, -0.015, -8.76]
+#             })
+
+
+#             # 将Excel日期序列转换为实际日期（只保留月日，忽略年份）
+#             def excel_num_to_date(num):
+#                 base_date = pd.Timestamp('1899-12-30')  # Excel的起始日期
+#                 date_obj = base_date + pd.Timedelta(days=num)
+#                 # 只保留月日部分，年份设为2023（统一基准年）
+#                 return datetime.date(2023, date_obj.month, date_obj.day)
+
+
+#             city_data = {}
+#             for _, row in city_df.iterrows():
+#                 city_name = row['城市']
+#                 heating_date = excel_num_to_date(row['供暖季开始时间'])
+#                 city_data[city_name] = {
+#                     "供暖季开始日期": heating_date,
+#                     "Tsavg": row['Tsavg'],
+#                     "Tamp1": row['Tamp1'],
+#                     "Tamp2": row['Tamp2'],
+#                     "PL1": row['PL1'],
+#                     "PL2": row['PL2']
+#                 }
+#         except Exception as e:
+#             st.error(f"加载预设城市数据时出错: {e}")
+#             city_data = {}
+
+#         # 城市选择或自定义选项
+#         use_preset = st.radio("请选择参数输入方式：",
+#                               ("使用预设城市参数", "手动输入所有参数"),
+#                               index=0)
+
+#         selected_city = None
+#         city_params = None
+
+#         if use_preset == "使用预设城市参数" and city_data:
+#             selected_city = st.selectbox("选择预设城市", list(city_data.keys()))
+#             city_params = city_data[selected_city]
+
+#             # 显示预设参数
+#             st.info(f"已选择 **{selected_city}** 的预设参数:")
+#             st.write(f"- 供暖季开始日期: {city_params['供暖季开始日期'].strftime('%m-%d')}")
+#             st.write(f"- 年平均地温 Tsavg: {city_params['Tsavg']}°C")
+#             st.write(f"- 年周期幅值1 Tamp1: {city_params['Tamp1']}")
+#             st.write(f"- 年周期幅值2 Tamp2: {city_params['Tamp2']}")
+#             st.write(f"- 动态边界模型参数1 PL1: {city_params['PL1']}天")
+#             st.write(f"- 动态边界模型参数2 PL2: {city_params['PL2']}天")
+
+#             # 使用预设的供暖季开始日期
+#             heating_date = city_params['供暖季开始日期']
+#         else:
+#             # 供暖日期选择器（手动输入模式）- 使用2023年作为基准年
+#             st.subheader("供暖季开始日期 (仅考虑月日)")
+#             # 默认日期使用11月5日，保证tt0与ipynb一致
+#             default_date = datetime.date(2023, 11, 5)
+#             heating_date = st.date_input("选择供暖季开始日期", value=default_date)
+#             # 确保年份为2023（统一基准年）
+#             heating_date = datetime.date(2023, heating_date.month, heating_date.day)
+
+#         # 计算tt0（供暖季开始时间秒数）- 使用统一的2023年1月1日作为基准
+#         jan1 = datetime.date(2023, 1, 1)
+#         tt0_days = (heating_date - jan1).days
+#         tt0 = tt0_days * 24 * 3600  # 转换为秒数
+#         tp = 31536000  # 一年秒数
+
+#         st.info(f"供暖季开始时间 tt0 计算值: {tt0} 秒 (从1月1日开始 {tt0_days} 天)")
+
+#         with st.sidebar.form("param_form"):
+#             st.header("参数设定")
+
+#             # 新增管式类型选择
+#             st.subheader("埋管类型")
+#             pipe_type = st.selectbox("选择埋管类型", ["螺旋管", "U型管", "W型管"], index=0)
+
+#             # 根据管式类型显示不同参数
+#             if pipe_type == "螺旋管":
+#                 # 螺旋管参数
+#                 st.subheader("螺旋管参数")
+#                 Ls = st.number_input("第一个圆环至地面距离 Ls (m)", value=2, help="该数值可以取：2")
+#                 delta_d = st.number_input("螺旋管圆环距离桩壁间距 delta d (m)", value=0.05, help="该数值可以取：0.05")
+#                 Lp = st.number_input("螺距 Lp (m)", value=0.1, help="该数值可以取：0.1")
+
+#                 # 管半径选择
+#                 # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
+#                 # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
+#                 # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
+
+#             elif pipe_type == "U型管":
+#                 # U型管参数
+#                 st.subheader("U型管参数")
+#                 d = st.number_input("U型管间距 d (m)", value=0.5, help="该数值可以取：0.5")
+
+#                 # 管半径选择
+#                 # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
+#                 # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
+#                 # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
+
+#             elif pipe_type == "W型管":
+#                 # W型管参数
+#                 st.subheader("W型管参数")
+#                 d = st.number_input("U型管间距 d (m)", value=0.5, help="该数值可以取：0.5")
+#                 du = st.number_input("两对U型管间距 du (m)", value=0.3, help="该数值可以取：0.3")
+
+#                 # 管半径选择
+#                 # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
+#                 # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
+#                 # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
+
+#             # 通用参数
+#             st.subheader("通用参数")
+#             # 将 rp 修改为下拉选择框
+#             r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
+#             default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
+#             rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
+#             ri = st.number_input("管内半径 ri (m)", value=0.0102, help="该数值可以取：0.0102")
+#             kp = st.number_input("管材导热系数 kp (W/(m·K))", value=0.4, help="该数值可以取：0.4")
+#             kb = st.number_input("回填材料导热系数 kb (W/(m·K))", value=2, help="该数值可以取：2")
+#             hr = st.number_input("流体与管内壁对流换热系数 hr (W/(m²·K))", value=1000, help="该数值可以取：1000")
+
+#             # 地温参数部分
+#             if use_preset == "使用预设城市参数" and city_params:
+#                 st.subheader(f"{selected_city} - 预设参数")
+#                 Tsavg = st.number_input("年平均地温 Tsavg (℃)", value=city_params['Tsavg'], disabled=True)
+#                 Tamp1 = st.number_input("年周期幅值1 Tamp1", value=city_params['Tamp1'], disabled=True)
+#                 Tamp2 = st.number_input("年周期幅值2 Tamp2", value=city_params['Tamp2'], disabled=True)
+#                 PL1_days = st.number_input("动态边界模型参数1 PL1", value=city_params['PL1'], disabled=True)
+#                 PL2_days = st.number_input("动态边界模型参数2 PL2", value=city_params['PL2'], disabled=True)
+#             else:
+#                 st.subheader("手动输入参数")
+#                 Tsavg = st.number_input("年平均地温 Tsavg (℃)", value=14.02, help="该数值可以取：14.02")
+#                 Tamp1 = st.number_input("年周期幅值1 Tamp1", value=14.69, help="该数值可以取：14.69")
+#                 Tamp2 = st.number_input("年周期幅值2 Tamp2", value=1.173, help="该数值可以取：1.173")
+#                 PL1_days = st.number_input("动态边界模型参数1 PL1", value=18.866, help="该数值可以取：18.866")
+#                 PL2_days = st.number_input("动态边界模型参数2 PL2", value=-0.616, help="该数值可以取：-0.616")
+
+#             # 转换为秒数（用于计算）
+#             PL1 = PL1_days * 3600 * 24
+#             PL2 = PL2_days * 3600 * 24
+
+#             # 土壤参数
+#             st.subheader("土壤参数")
+#             ks = st.number_input("土壤导热系数 ks (W/(m·K))", value=2.1, help="该数值可以取：2.1")
+#             Cv = st.number_input("土壤体积热容 Cv (J/(m³·K))", value=2200000, help="该数值可以取：2200000")
+#             rs = st.number_input("土壤热阻系数 rs", value=0.5, help="该数值可以取：0.5")
+
+#             # 能量桩参数
+#             st.subheader("能量桩参数")
+#             Dp = st.number_input("能量桩直径 Dp (m)", value=0.8, help="该数值可以取：0.8")
+#             H = st.number_input("能量桩深度 H (m)", value=8, help="该数值可以取：8")
+#             Np = st.number_input("能量桩个数 Np", value=150, help="该数值可以取：150")
+#             DD = st.number_input("能量桩间距 DD (m)", value=3, help="该数值可以取：3")
+
+#             # 垂直方向计算节点设置
+#             st.subheader("垂直方向计算节点")
+#             n = st.number_input("分层数 n（正整数）", min_value=1, value=4, step=1)
+#             # Ls = st.number_input("第一个圆环至地面距离 Ls (m)", value=2, help="该数值可以取：2")
+#             # delta_d = st.number_input("螺旋管圆环距离桩壁间距 delta d (m)", value=0.05, help="该数值可以取：0.05")
+#             # Lp = st.number_input("螺距 Lp (m)", value=0.1, help="该数值可以取：0.1")
+
+#             st.subheader("能量桩混凝土参数")
+#             alpha = st.number_input('热膨胀系数 alpha (/℃)', value=1e-5, format="%e", help='推荐值：1e-5')
+#             Ep = st.number_input('能量桩弹性模量 Ep (kPa)', value=3e7, format="%e", help='推荐值：3e7')
+#             st.session_state['alpha'] = alpha
+#             st.session_state['Ep'] = Ep
+
+#             st.subheader("热泵参数")
+#             v = st.number_input("流速 v (m/s)", value=0.4, help="该数值可以取：0.4")
+#             cw = st.number_input("水的比热容 cw (J/(kg·K))", value=4200, help="该数值可以取：4200")
+
+#             submit_params = st.form_submit_button("提交参数")
+
+#         if submit_params:
+#             # 计算相关变量
+#             # 存储管式类型和参数
+#             if 'params' not in st.session_state:
+#                 st.session_state['params'] = {}
+#             st.session_state['params']['pipe_type'] = pipe_type
+#             if pipe_type == "螺旋管":
+#                 st.session_state['params']['Ls'] = Ls
+#                 st.session_state['params']['delta_d'] = delta_d
+#                 st.session_state['params']['Lp'] = Lp
+#                 # 计算相关变量
+#                 D = Dp - 2 * delta_d  # 圆环直径
+#                 Rs = D / 2           # 圆环半径 m
+#                 Nc = math.floor((H - Ls) / Lp) + 1  # 圆环数量
+#                 st.session_state['params']['D'] = D
+#                 st.session_state['params']['Nc'] = Nc
+#                 L_total = Np * (Nc * np.pi * D + Nc * Lp)
+#                 # ---- 响应点坐标初始化 ----
+#                 z = np.zeros(Nc)
+#                 z[0] = Ls
+#                 for i in range(1, Nc):
+#                     z[i] = z[i - 1] + Lp
+#             elif pipe_type == "U型管":
+#                 st.session_state['params']['d'] = d
+#                 L_total = round(Np * H * 2, 2)
+#             elif pipe_type == "W型管":
+#                 st.session_state['params']['d'] = d
+#                 st.session_state['params']['du'] = du
+#                 L_total = round(Np * H * 4, 2)
+
+#             M = np.pi * ri ** 2 * 1000 * v  # 单根管道流量 kg/h
+#             tt = np.arange(0, 3600 * 24 * 365 + 1, 3600)  # 一年每小时的时间向量，单位秒
+#             ttmax = len(tt)  # 时间步数
+#             qv = math.pi * ri ** 2 * v * 3600  # 单根管道体积流量 m³/h
+#             rho = 1000  # 水的密度 kg/m³
+#             mu = 0.001  # 水的动力粘度 Pa·s
+#             Re = (rho * v * (2 * ri)) / mu  # 雷诺数计算公式
+
+#             xx = [Dp / 2, DD - Dp / 2, DD + Dp / 2, Dp / 2, DD - Dp / 2, DD + Dp / 2]
+#             yy = [0, 0, 0, DD, DD, DD]
+
+#             # 在 [Ls, H] 区间内均分 n 个点，包含 Ls 和 H
+#             # 根据管型类型拆分zz的赋值
+#             if pipe_type == "螺旋管":
+#                 zz = np.linspace(Ls, H, n)
+#             else:
+#                 zz = np.linspace(H / n, H, n)
+
+#             # 确保包含 H/2，如果不在，则追加后排序去重
+#             if not np.any(np.isclose(zz, H / 2)):
+#                 zz = np.append(zz, H / 2)
+#                 zz = np.sort(np.unique(zz))
+
+#             # 打印并检查（改为st页面显示）
+#             st.write('分层深度 zz:', zz)
+#             if np.any(np.isclose(zz, H / 2)):
+#                 st.success('zz 已包含 H/2，H/2处的响应温度将用于计算出口水温')
+#             else:
+#                 st.warning('zz 未包含 H/2，建议检查分层设置')
+
+#             # 存储所有参数和中间变量到session_state，包括响应点坐标
+#             params_dict = {
+#                 'pipe_type': pipe_type,
+#                 'ks': ks, 'Cv': Cv, 'rs': rs,
+#                 'tp': tp, 'tt0': tt0,
+#                 'Tsavg': Tsavg, 'Tamp1': Tamp1, 'Tamp2': Tamp2, 'PL1': PL1, 'PL2': PL2,
+#                 'Dp': Dp, 'H': H, 'Np': Np, 'DD': DD,
+#                 'rp': rp, 'ri': ri, 'kp': kp, 'kb': kb, 'hr': hr,
+#                 'v': v, 'cw': cw, 'M': M, 'L_total': L_total,
+#                 'tt': tt, 'ttmax': ttmax,
+#                 'xx': xx, 'yy': yy, 'zz': zz,
+#                 'n': n,  # 分层数
+#                 'Q': st.session_state.get('Q', None),  # 负荷数据
+#                 'alpha': st.session_state.get('alpha', 1e-5),
+#                 'Ep': st.session_state.get('Ep', 3e7),
+#             }
+#             if pipe_type == "螺旋管":
+#                 params_dict.update({'Ls': Ls, 'delta_d': delta_d, 'D': D, 'Rs': Rs, 'Lp': Lp, 'Nc': Nc,'z': z})
+#             elif pipe_type == "U型管":
+#                 params_dict.update({'d': d})
+#             elif pipe_type == "W型管":
+#                 params_dict.update({'d': d, 'du': du})
+#             st.session_state['params'] = params_dict
+
+#             st.success("参数已提交，可用于后续模拟。")
+#             st.write('根据提交参数计算得到:')
+#             # st.write('圆环直径 D (m):', D)
+#             # st.write('圆环半径 Rs (m):', Rs)
+#             # st.write('圆环数量 Nc(个)：', Nc)
+#             st.write('单根管道流量 (kg/h):', M)
+#             st.write('埋管总长度 L_total:', L_total)
+#             st.write('分层深度 zz:', zz)
+#         st.markdown(
+#             "<span style='color:white; font-size:20px; font-weight:bold;'>请检查左侧参数输入是否正确，确保所有必填项已填写。</span>",
+#             unsafe_allow_html=True)
+#         page_nav()
 
 elif st.session_state['page'] == 2:
         if st.button('返回首页', key='back_home_X'):
@@ -195,9 +511,19 @@ elif st.session_state['page'] == 2:
         st.markdown('<span style="color:red; font-weight:bold;">- 输入完成后将左侧参数栏拉至最底部点击"提交参数"按钮</span>', unsafe_allow_html=True)
         st.markdown('<span style="color:red; font-weight:bold;">- 本平台支持垂直方向设定多个均匀计算节点n作为桩壁温度输出，但设置n时需保证桩壁中点被包含</span>', unsafe_allow_html=True)
 
-        # 预设城市数据（从Excel中读取）
-        try:
-            # 从提供的Excel内容中创建DataFrame
+       # ===== 左边栏：地理参数设定 =====
+        with st.sidebar:
+            st.header("地理参数设定")
+            st.markdown(
+                "<span style='color:red; font-size:18px; font-weight:bold;'>⚠️ 请选择参数并点击底部按钮确认，否则不会生效</span>",
+                unsafe_allow_html=True
+            )
+
+            # 初始化 session_state 保存的最终参数
+            if "geo_params" not in st.session_state:
+                st.session_state.geo_params = None
+
+            # 预设城市数据
             city_df = pd.DataFrame({
                 "城市": ["大连", "郑州", "兰州", "武汉", "长沙", "杭州", "合肥", "西安", "太原"],
                 "供暖季开始时间": [45966, 45976, 45962, 45976, 45976, 45996, 45996, 45976, 45962],
@@ -208,223 +534,188 @@ elif st.session_state['page'] == 2:
                 "PL2": [-11.655, -17.384, -17.465, -20.602, -0.979, -1.99, 10.882, -0.015, -8.76]
             })
 
-
-            # 将Excel日期序列转换为实际日期（只保留月日，忽略年份）
             def excel_num_to_date(num):
-                base_date = pd.Timestamp('1899-12-30')  # Excel的起始日期
+                base_date = pd.Timestamp('1899-12-30')
                 date_obj = base_date + pd.Timedelta(days=num)
-                # 只保留月日部分，年份设为2023（统一基准年）
                 return datetime.date(2023, date_obj.month, date_obj.day)
 
-
-            city_data = {}
-            for _, row in city_df.iterrows():
-                city_name = row['城市']
-                heating_date = excel_num_to_date(row['供暖季开始时间'])
-                city_data[city_name] = {
-                    "供暖季开始日期": heating_date,
-                    "Tsavg": row['Tsavg'],
-                    "Tamp1": row['Tamp1'],
-                    "Tamp2": row['Tamp2'],
-                    "PL1": row['PL1'],
-                    "PL2": row['PL2']
+            city_data = {
+                row["城市"]: {
+                    "供暖季开始日期": excel_num_to_date(row["供暖季开始时间"]),
+                    "Tsavg": row["Tsavg"],
+                    "Tamp1": row["Tamp1"],
+                    "Tamp2": row["Tamp2"],
+                    "PL1": row["PL1"],
+                    "PL2": row["PL2"],
                 }
-        except Exception as e:
-            st.error(f"加载预设城市数据时出错: {e}")
-            city_data = {}
+                for _, row in city_df.iterrows()
+            }
 
-        # 城市选择或自定义选项
-        use_preset = st.radio("请选择参数输入方式：",
-                              ("使用预设城市参数", "手动输入所有参数"),
-                              index=0)
+            # ===== 临时变量（输入区始终变化） =====
+            use_preset = st.radio("请选择参数输入方式：",
+                                ("使用预设城市参数", "手动输入所有参数"),
+                                index=0)
 
-        selected_city = None
-        city_params = None
+            if use_preset == "使用预设城市参数":
+                selected_city = st.selectbox("选择预设城市", list(city_data.keys()))
+                city_params = city_data[selected_city]
 
-        if use_preset == "使用预设城市参数" and city_data:
-            selected_city = st.selectbox("选择预设城市", list(city_data.keys()))
-            city_params = city_data[selected_city]
+                st.info(f"已选择 **{selected_city}** 的参数")
 
-            # 显示预设参数
-            st.info(f"已选择 **{selected_city}** 的预设参数:")
-            st.write(f"- 供暖季开始日期: {city_params['供暖季开始日期'].strftime('%m-%d')}")
-            st.write(f"- 年平均地温 Tsavg: {city_params['Tsavg']}°C")
-            st.write(f"- 年周期幅值1 Tamp1: {city_params['Tamp1']}")
-            st.write(f"- 年周期幅值2 Tamp2: {city_params['Tamp2']}")
-            st.write(f"- 动态边界模型参数1 PL1: {city_params['PL1']}天")
-            st.write(f"- 动态边界模型参数2 PL2: {city_params['PL2']}天")
+                Tsavg_tmp = city_params['Tsavg']
+                Tamp1_tmp = city_params['Tamp1']
+                Tamp2_tmp = city_params['Tamp2']
+                PL1_tmp = city_params['PL1']
+                PL2_tmp = city_params['PL2']
+                heating_date_tmp = city_params["供暖季开始日期"]
 
-            # 使用预设的供暖季开始日期
-            heating_date = city_params['供暖季开始日期']
-        else:
-            # 供暖日期选择器（手动输入模式）- 使用2023年作为基准年
-            st.subheader("供暖季开始日期 (仅考虑月日)")
-            # 默认日期使用11月5日，保证tt0与ipynb一致
-            default_date = datetime.date(2023, 11, 5)
-            heating_date = st.date_input("选择供暖季开始日期", value=default_date)
-            # 确保年份为2023（统一基准年）
-            heating_date = datetime.date(2023, heating_date.month, heating_date.day)
+                st.write(f"- 供暖季开始日期: {heating_date_tmp.strftime('%m-%d')}")
+                st.write(f"- 年平均地温 Tsavg: {Tsavg_tmp} ℃")
+                st.write(f"- 年周期幅值1 Tamp1: {Tamp1_tmp}")
+                st.write(f"- 年周期幅值2 Tamp2: {Tamp2_tmp}")
+                st.write(f"- 动态边界模型参数1 PL1: {PL1_tmp} 天")
+                st.write(f"- 动态边界模型参数2 PL2: {PL2_tmp} 天")
 
-        # 计算tt0（供暖季开始时间秒数）- 使用统一的2023年1月1日作为基准
-        jan1 = datetime.date(2023, 1, 1)
-        tt0_days = (heating_date - jan1).days
-        tt0 = tt0_days * 24 * 3600  # 转换为秒数
-        tp = 31536000  # 一年秒数
-
-        st.info(f"供暖季开始时间 tt0 计算值: {tt0} 秒 (从1月1日开始 {tt0_days} 天)")
-
-
-        with st.sidebar.form("param_form"):
-            st.header("参数设定")
-
-            # 新增管式类型选择
-            st.subheader("埋管类型")
-            pipe_type = st.selectbox("选择埋管类型", ["螺旋管", "U型管", "W型管"], index=0)
-
-            # 根据管式类型显示不同参数
-            if pipe_type == "螺旋管":
-                # 螺旋管参数
-                st.subheader("螺旋管参数")
-                Ls = st.number_input("第一个圆环至地面距离 Ls (m)", value=2, help="该数值可以取：2")
-                delta_d = st.number_input("螺旋管圆环距离桩壁间距 delta d (m)", value=0.05, help="该数值可以取：0.05")
-                Lp = st.number_input("螺距 Lp (m)", value=0.1, help="该数值可以取：0.1")
-
-                # 管半径选择
-                # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
-                # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
-                # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
-
-            elif pipe_type == "U型管":
-                # U型管参数
-                st.subheader("U型管参数")
-                d = st.number_input("U型管间距 d (m)", value=0.5, help="该数值可以取：0.5")
-
-                # 管半径选择
-                # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
-                # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
-                # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
-
-            elif pipe_type == "W型管":
-                # W型管参数
-                st.subheader("W型管参数")
-                d = st.number_input("U型管间距 d (m)", value=0.5, help="该数值可以取：0.5")
-                du = st.number_input("两对U型管间距 du (m)", value=0.3, help="该数值可以取：0.3")
-
-                # 管半径选择
-                # r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
-                # default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
-                # rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
-
-            # 通用参数
-            st.subheader("通用参数")
-            # 将 rp 修改为下拉选择框
-            r_pile_options = [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315]
-            default_rp_index = r_pile_options.index(0.0125) if 0.0125 in r_pile_options else 0
-            rp = st.selectbox("管外半径 rp (m)", options=r_pile_options, index=default_rp_index)
-            ri = st.number_input("管内半径 ri (m)", value=0.0102, help="该数值可以取：0.0102")
-            kp = st.number_input("管材导热系数 kp (W/(m·K))", value=0.4, help="该数值可以取：0.4")
-            kb = st.number_input("回填材料导热系数 kb (W/(m·K))", value=2, help="该数值可以取：2")
-            hr = st.number_input("流体与管内壁对流换热系数 hr (W/(m²·K))", value=1000, help="该数值可以取：1000")
-
-            # 地温参数部分
-            if use_preset == "使用预设城市参数" and city_params:
-                st.subheader(f"{selected_city} - 预设参数")
-                Tsavg = st.number_input("年平均地温 Tsavg (℃)", value=city_params['Tsavg'], disabled=True)
-                Tamp1 = st.number_input("年周期幅值1 Tamp1", value=city_params['Tamp1'], disabled=True)
-                Tamp2 = st.number_input("年周期幅值2 Tamp2", value=city_params['Tamp2'], disabled=True)
-                PL1_days = st.number_input("动态边界模型参数1 PL1", value=city_params['PL1'], disabled=True)
-                PL2_days = st.number_input("动态边界模型参数2 PL2", value=city_params['PL2'], disabled=True)
             else:
+                st.subheader("供暖季开始日期 (仅考虑月日)")
+                default_date = datetime.date(2023, 11, 5)
+                heating_date_tmp = st.date_input("选择供暖季开始日期", value=default_date)
+                heating_date_tmp = datetime.date(2023, heating_date_tmp.month, heating_date_tmp.day)
+
                 st.subheader("手动输入参数")
-                Tsavg = st.number_input("年平均地温 Tsavg (℃)", value=14.02, help="该数值可以取：14.02")
-                Tamp1 = st.number_input("年周期幅值1 Tamp1", value=14.69, help="该数值可以取：14.69")
-                Tamp2 = st.number_input("年周期幅值2 Tamp2", value=1.173, help="该数值可以取：1.173")
-                PL1_days = st.number_input("动态边界模型参数1 PL1", value=18.866, help="该数值可以取：18.866")
-                PL2_days = st.number_input("动态边界模型参数2 PL2", value=-0.616, help="该数值可以取：-0.616")
+                Tsavg_tmp = st.number_input("年平均地温 Tsavg (℃)", value=14.02)
+                Tamp1_tmp = st.number_input("年周期幅值1 Tamp1", value=14.69)
+                Tamp2_tmp = st.number_input("年周期幅值2 Tamp2", value=1.173)
+                PL1_tmp = st.number_input("动态边界模型参数1 PL1 (天)", value=18.866)
+                PL2_tmp = st.number_input("动态边界模型参数2 PL2 (天)", value=-0.616)
 
-            # 转换为秒数（用于计算）
-            PL1 = PL1_days * 3600 * 24
-            PL2 = PL2_days * 3600 * 24
+            # ===== 确认按钮：只有点击才更新 session_state =====
+            if st.button("确认地理参数"):
+                # 转换为秒
+                PL1_sec = PL1_tmp * 3600 * 24
+                PL2_sec = PL2_tmp * 3600 * 24
+                jan1 = datetime.date(2023, 1, 1)
+                tt0_days_tmp = (heating_date_tmp - jan1).days
+                tt0_tmp = tt0_days_tmp * 24 * 3600
+                tp_tmp = 31536000
 
-            # 土壤参数
+                # 保存到 session_state
+                st.session_state.geo_params = {
+                    "Tsavg": Tsavg_tmp,
+                    "Tamp1": Tamp1_tmp,
+                    "Tamp2": Tamp2_tmp,
+                    "PL1": PL1_sec,
+                    "PL2": PL2_sec,
+                    "tt0": tt0_tmp,
+                    "tp": tp_tmp,
+                    "heating_date": heating_date_tmp,
+                    "tt0_days": tt0_days_tmp
+                }
+                st.success("✅ 地理参数已确认")
+
+            # ===== 读取已确认参数 =====
+            if st.session_state.geo_params:
+                gp = st.session_state.geo_params
+                Tsavg = gp['Tsavg']
+                Tamp1 = gp['Tamp1']
+                Tamp2 = gp['Tamp2']
+                PL1 = gp['PL1']
+                PL2 = gp['PL2']
+                tt0 = gp['tt0']
+                tp = gp['tp']
+                heating_date = gp['heating_date']
+                tt0_days = gp['tt0_days']
+            else:
+                st.warning("⚠️ 地理参数尚未确认，请先点击 '确认地理参数'。")
+                Tsavg = 14.02
+                Tamp1 = 14.69
+                Tamp2 = 1.173
+                PL1 = 18.866 * 3600 * 24
+                PL2 = -0.616 * 3600 * 24
+                tt0 = 0
+                tp = 31536000
+                heating_date = datetime.date(2023, 11, 5)
+                tt0_days = 0
+
+        # ===== 主页面：其他参数设定 =====
+        st.header("参数设定")
+
+        # ===== 1 管型选择与特有参数 =====
+        st.subheader("埋管类型")
+        pipe_type = st.selectbox("选择埋管类型", ["螺旋管", "U型管", "W型管"], index=0, key="pipe_type")
+
+        # 管型特有参数
+        if pipe_type == "螺旋管":
+            st.subheader("螺旋管参数")
+            Ls = st.number_input("第一个圆环至地面距离 Ls (m)", value=2, key="Ls")
+            delta_d = st.number_input("螺旋管圆环距离桩壁间距 delta d (m)", value=0.05, key="delta_d")
+            Lp = st.number_input("螺距 Lp (m)", value=0.1, key="Lp")
+        elif pipe_type == "U型管":
+            st.subheader("U型管参数")
+            d = st.number_input("U型管间距 d (m)", value=0.5, key="d")
+        elif pipe_type == "W型管":
+            st.subheader("W型管参数")
+            d = st.number_input("U型管间距 d (m)", value=0.5, key="d")
+            du = st.number_input("两对U型管间距 du (m)", value=0.3, key="du")
+
+        # ===== 2 通用参数 form =====
+        with st.form("param_form"):
+            st.subheader("通用参数")
+            rp = st.selectbox("管外半径 rp (m)", [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315], index=1, key="rp")
+            ri = st.number_input("管内半径 ri (m)", value=0.0102, key="ri")
+            kp = st.number_input("管材导热系数 kp", value=0.4, key="kp")
+            kb = st.number_input("回填材料导热系数 kb", value=2, key="kb")
+            hr = st.number_input("对流换热系数 hr", value=1000, key="hr")
+
             st.subheader("土壤参数")
-            ks = st.number_input("土壤导热系数 ks (W/(m·K))", value=2.1, help="该数值可以取：2.1")
-            Cv = st.number_input("土壤体积热容 Cv (J/(m³·K))", value=2200000, help="该数值可以取：2200000")
-            rs = st.number_input("土壤热阻系数 rs", value=0.5, help="该数值可以取：0.5")
+            ks = st.number_input("土壤导热系数 ks", value=2.1, key="ks")
+            Cv = st.number_input("土壤体积热容 Cv", value=2.2e6, key="Cv")
+            rs = st.number_input("土壤热阻系数 rs", value=0.5, key="rs")
 
-            # 能量桩参数
             st.subheader("能量桩参数")
-            Dp = st.number_input("能量桩直径 Dp (m)", value=0.8, help="该数值可以取：0.8")
-            H = st.number_input("能量桩深度 H (m)", value=8, help="该数值可以取：8")
-            Np = st.number_input("能量桩个数 Np", value=150, help="该数值可以取：150")
-            DD = st.number_input("能量桩间距 DD (m)", value=3, help="该数值可以取：3")
+            Dp = st.number_input("能量桩直径 Dp (m)", value=0.8, key="Dp")
+            H = st.number_input("能量桩深度 H (m)", value=8, key="H")
+            Np = st.number_input("能量桩个数 Np", value=150, key="Np")
+            DD = st.number_input("能量桩间距 DD (m)", value=3, key="DD")
 
-            # 垂直方向计算节点设置
             st.subheader("垂直方向计算节点")
-            n = st.number_input("分层数 n（正整数）", min_value=1, value=4, step=1)
-            # Ls = st.number_input("第一个圆环至地面距离 Ls (m)", value=2, help="该数值可以取：2")
-            # delta_d = st.number_input("螺旋管圆环距离桩壁间距 delta d (m)", value=0.05, help="该数值可以取：0.05")
-            # Lp = st.number_input("螺距 Lp (m)", value=0.1, help="该数值可以取：0.1")
-
-            st.subheader("能量桩混凝土参数")
-            alpha = st.number_input('热膨胀系数 alpha (/℃)', value=1e-5, format="%e", help='推荐值：1e-5')
-            Ep = st.number_input('能量桩弹性模量 Ep (kPa)', value=3e7, format="%e", help='推荐值：3e7')
-            st.session_state['alpha'] = alpha
-            st.session_state['Ep'] = Ep
+            n = st.number_input("分层数 n（正整数）", min_value=1, value=4, step=1, key="n")
 
             st.subheader("热泵参数")
-            v = st.number_input("流速 v (m/s)", value=0.4, help="该数值可以取：0.4")
-            cw = st.number_input("水的比热容 cw (J/(kg·K))", value=4200, help="该数值可以取：4200")
+            v = st.number_input("流速 v (m/s)", value=0.4, key="v")
+            cw = st.number_input("水的比热容 cw (J/(kg·K))", value=4200, key="cw")
+
+            st.subheader("混凝土参数")
+            alpha = st.number_input("热膨胀系数 alpha", value=1e-5, format="%e", key="alpha")
+            Ep = st.number_input("能量桩弹性模量 Ep (kPa)", value=3e7, format="%e", key="Ep")
 
             submit_params = st.form_submit_button("提交参数")
 
+        # ===== 3 提交后处理 =====
         if submit_params:
-            # 计算相关变量
-            # 存储管式类型和参数
-            if 'params' not in st.session_state:
-                st.session_state['params'] = {}
-            st.session_state['params']['pipe_type'] = pipe_type
+            # 管型计算
             if pipe_type == "螺旋管":
-                st.session_state['params']['Ls'] = Ls
-                st.session_state['params']['delta_d'] = delta_d
-                st.session_state['params']['Lp'] = Lp
-                # 计算相关变量
-                D = Dp - 2 * delta_d  # 圆环直径
-                Rs = D / 2           # 圆环半径 m
-                Nc = math.floor((H - Ls) / Lp) + 1  # 圆环数量
-                st.session_state['params']['D'] = D
-                st.session_state['params']['Nc'] = Nc
+                D = Dp - 2 * delta_d
+                Rs = D / 2
+                Nc = math.floor((H - Ls) / Lp) + 1
                 L_total = Np * (Nc * np.pi * D + Nc * Lp)
-                # ---- 响应点坐标初始化 ----
                 z = np.zeros(Nc)
                 z[0] = Ls
                 for i in range(1, Nc):
                     z[i] = z[i - 1] + Lp
             elif pipe_type == "U型管":
-                st.session_state['params']['d'] = d
                 L_total = round(Np * H * 2, 2)
             elif pipe_type == "W型管":
-                st.session_state['params']['d'] = d
-                st.session_state['params']['du'] = du
                 L_total = round(Np * H * 4, 2)
 
-            M = np.pi * ri ** 2 * 1000 * v  # 单根管道流量 kg/h
-            tt = np.arange(0, 3600 * 24 * 365 + 1, 3600)  # 一年每小时的时间向量，单位秒
-            ttmax = len(tt)  # 时间步数
-            qv = math.pi * ri ** 2 * v * 3600  # 单根管道体积流量 m³/h
-            rho = 1000  # 水的密度 kg/m³
-            mu = 0.001  # 水的动力粘度 Pa·s
-            Re = (rho * v * (2 * ri)) / mu  # 雷诺数计算公式
-
+            # 其他计算
+            M = np.pi * ri ** 2 * 1000 * v
+            tt = np.arange(0, 3600 * 24 * 365 + 1, 3600)
+            ttmax = len(tt)
             xx = [Dp / 2, DD - Dp / 2, DD + Dp / 2, Dp / 2, DD - Dp / 2, DD + Dp / 2]
             yy = [0, 0, 0, DD, DD, DD]
+            zz = np.linspace(Ls if pipe_type=="螺旋管" else H/n, H, n)
 
-            # 在 [Ls, H] 区间内均分 n 个点，包含 Ls 和 H
-            # 根据管型类型拆分zz的赋值
-            if pipe_type == "螺旋管":
-                zz = np.linspace(Ls, H, n)
-            else:
-                zz = np.linspace(H / n, H, n)
 
             # 确保包含 H/2，如果不在，则追加后排序去重
             if not np.any(np.isclose(zz, H / 2)):
@@ -437,23 +728,22 @@ elif st.session_state['page'] == 2:
                 st.success('zz 已包含 H/2，H/2处的响应温度将用于计算出口水温')
             else:
                 st.warning('zz 未包含 H/2，建议检查分层设置')
-
-            # 存储所有参数和中间变量到session_state，包括响应点坐标
+            
             params_dict = {
-                'pipe_type': pipe_type,
-                'ks': ks, 'Cv': Cv, 'rs': rs,
-                'tp': tp, 'tt0': tt0,
-                'Tsavg': Tsavg, 'Tamp1': Tamp1, 'Tamp2': Tamp2, 'PL1': PL1, 'PL2': PL2,
-                'Dp': Dp, 'H': H, 'Np': Np, 'DD': DD,
-                'rp': rp, 'ri': ri, 'kp': kp, 'kb': kb, 'hr': hr,
-                'v': v, 'cw': cw, 'M': M, 'L_total': L_total,
-                'tt': tt, 'ttmax': ttmax,
-                'xx': xx, 'yy': yy, 'zz': zz,
-                'n': n,  # 分层数
-                'Q': st.session_state.get('Q', None),  # 负荷数据
-                'alpha': st.session_state.get('alpha', 1e-5),
-                'Ep': st.session_state.get('Ep', 3e7),
-            }
+                            'pipe_type': pipe_type,
+                            'ks': ks, 'Cv': Cv, 'rs': rs,
+                            'tp': tp, 'tt0': tt0,
+                            'Tsavg': Tsavg, 'Tamp1': Tamp1, 'Tamp2': Tamp2, 'PL1': PL1, 'PL2': PL2,
+                            'Dp': Dp, 'H': H, 'Np': Np, 'DD': DD,
+                            'rp': rp, 'ri': ri, 'kp': kp, 'kb': kb, 'hr': hr,
+                            'v': v, 'cw': cw, 'M': M, 'L_total': L_total,
+                            'tt': tt, 'ttmax': ttmax,
+                            'xx': xx, 'yy': yy, 'zz': zz,
+                            'n': n,  # 分层数
+                            'Q': st.session_state.get('Q', None),  # 负荷数据
+                            'alpha': alpha, 'Ep': Ep
+                            }
+
             if pipe_type == "螺旋管":
                 params_dict.update({'Ls': Ls, 'delta_d': delta_d, 'D': D, 'Rs': Rs, 'Lp': Lp, 'Nc': Nc,'z': z})
             elif pipe_type == "U型管":
@@ -470,9 +760,7 @@ elif st.session_state['page'] == 2:
             st.write('单根管道流量 (kg/h):', M)
             st.write('埋管总长度 L_total:', L_total)
             st.write('分层深度 zz:', zz)
-        st.markdown(
-            "<span style='color:white; font-size:20px; font-weight:bold;'>请检查左侧参数输入是否正确，确保所有必填项已填写。</span>",
-            unsafe_allow_html=True)
+        
         page_nav()
 
 elif st.session_state['page'] == 3:
@@ -1732,7 +2020,7 @@ elif st.session_state['page'] == 10:
                 st.error(f"管径{rp}不在预定义列表{r_pile}中")
             else:
                 # ---- 打印基本信息 ----
-                st.write('能量桩群内螺旋管总长L_total（m）:', round(L_total, 2))
+                st.write('能量桩群内换热管总长L_total（m）:', round(L_total, 2))
                 st.write('能量桩数量Np（个）:', Np)
                 st.write('能量桩外半径rp（m）:', rp)
                 st.write('每米PE管造价系数k_d（CNY/m）:', round(k_d[r_pile.index(rp)], 2))
