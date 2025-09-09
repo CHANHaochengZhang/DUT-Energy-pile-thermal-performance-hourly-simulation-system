@@ -847,11 +847,31 @@ elif st.session_state['page'] == 2:
             d = st.number_input("U型管间距 d (m)", value=0.5, key="d")
             du = st.number_input("两对U型管间距 du (m)", value=0.3, key="du")
 
+        # ===== 管径数据表 =====
+        pipe_data = {
+            "管外半径(m)": [0.010, 0.0125, 0.016, 0.020, 0.025, 0.0315],
+            "管内半径(m)": [0.008, 0.0102, 0.013, 0.0162, 0.0202, 0.0252]
+        }
+        # 转置为横向表格
+        pipe_df = pd.DataFrame(pipe_data).T
+        pipe_df.columns = [f"选项{i+1}" for i in range(len(pipe_df.columns))]
+
         # ===== 2 通用参数 form =====
         with st.form("param_form"):
             st.subheader("通用参数")
+            # 先展示管径对照表
+            st.markdown("**📋 管径对照表（请参考 rp 与 ri 的对应关系）**")
+            st.dataframe(pipe_df, use_container_width=True)
+
             rp = st.selectbox("管外半径 rp (m)", [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315], index=1, key="rp")
-            ri = st.number_input("管内半径 ri (m)", value=0.0102, key="ri")
+            # ri = st.number_input("管内半径 ri (m)", value=0.0102, key="ri")
+            # ri 手动输入，但提示用户参考上表
+            ri = st.number_input(
+                "管内半径 ri (m) （请参考上表对应 rp 的数值填写）", 
+                value=0.0102, 
+                key="ri"
+            )
+                        
             kp = st.number_input("管材导热系数 kp", value=0.4, key="kp")
             kb = st.number_input("回填材料导热系数 kb", value=2, key="kb")
             hr = st.number_input("对流换热系数 hr", value=1000, key="hr")
@@ -2364,11 +2384,16 @@ elif st.session_state['page'] == 9:
         st.rerun()
     st.header("9. 全年模拟结果可视化")
     st.markdown("""
-**本页内容：**
-- 根据全年模拟结果，将结果可视化。
-- 下载全部计算数据。
-    """)
-    st.markdown('<span style="color:red; font-weight:bold;">- 请等待绘制完成后再点击"下一页"按钮，进入经济性计算页面</span>', unsafe_allow_html=True)
+**📊 本页内容预览：**
+
+- 🔍 对全年逐时模拟结果进行可视化展示，包括：
+  - 不同深度的桩壁温度变化；
+  - 进出口水温变化；
+  - 桩顶位移变化；
+  - 最大应力变化。
+- 📥 提供一键下载功能，获取全部计算结果的 Excel 文件以便后续分析。
+""")
+
     # 读取结果文件
     try:
         df_plot = pd.read_excel('results/data_result.xlsx')
@@ -2383,11 +2408,88 @@ elif st.session_state['page'] == 9:
     else:
         hours = np.arange(len(df_plot))
 
-    # ---------- 第一部分：不同深度桩壁温度 ----------
-    temp_cols = [col for col in df_plot.columns if col.startswith('桩壁温度_')]
-    col1, col2 = st.columns(2)  # 创建两列布局
+    # # ---------- 第一部分：不同深度桩壁温度 ----------
+    # temp_cols = [col for col in df_plot.columns if col.startswith('桩壁温度_')]
+    # col1, col2 = st.columns(2)  # 创建两列布局
 
-    with col1:
+    # with col1:
+    #     if temp_cols:
+    #         fig1, ax1 = plt.subplots(figsize=(6, 4))
+    #         for col in temp_cols:
+    #             ax1.plot(hours / 24, df_plot[col], label=col)
+    #         ax1.set_xlabel("Time (days)")
+    #         ax1.set_ylabel("Temperature (°C)")
+    #         ax1.set_title("不同深度桩壁温度全年变化")
+    #         ax1.legend()
+    #         ax1.grid(True)
+    #         st.pyplot(fig1)
+    #     else:
+    #         st.info("结果文件中未找到不同深度桩壁温度数据")
+
+    # # ---------- 第二部分：进出口水温 ----------
+    # with col2:
+    #     if 'T_in' in df_plot.columns or 'T_out' in df_plot.columns:
+    #         fig2, ax2 = plt.subplots(figsize=(6, 4))
+    #         if 'T_in' in df_plot.columns:
+    #             ax2.plot(hours / 24, df_plot['T_in'], label='T_in (进水温度)')
+    #         if 'T_out' in df_plot.columns:
+    #             ax2.plot(hours / 24, df_plot['T_out'], label='T_out (出水温度)')
+    #         ax2.set_xlabel("Time (days)")
+    #         ax2.set_ylabel("Temperature (°C)")
+    #         ax2.set_title("进出口水温全年变化")
+    #         ax2.legend()
+    #         ax2.grid(True)
+    #         st.pyplot(fig2)
+    #     else:
+    #         st.info("结果文件中未找到进出口水温数据")
+
+    # # 创建第二行两列
+    # col3, col4 = st.columns(2)
+
+    # # ---------- 第三部分：桩顶位移（mm） ----------
+    # with col3:
+    #     if 'z_top' in df_plot.columns:
+    #         fig3, ax3 = plt.subplots(figsize=(6, 4))
+    #         ax3.plot(hours / 24, df_plot['z_top'], label='桩顶位移')
+    #         ax3.set_xlabel("Time (days)")
+    #         ax3.set_ylabel("z_top (mm)")
+    #         ax3.set_ylim(-1, 1)
+    #         ax3.set_title("桩顶位移全年变化 (mm)")
+    #         ax3.grid(True)
+    #         ax3.legend()
+    #         st.pyplot(fig3)
+    #     else:
+    #         st.info("结果文件中未找到桩顶位移数据")
+
+    # # ---------- 第四部分：最大应力 ----------
+    # with col4:
+    #     if 'sigma_max' in df_plot.columns:
+    #         fig4, ax4 = plt.subplots(figsize=(6, 4))
+    #         ax4.plot(hours / 24, df_plot['sigma_max'], label='最大应力')
+    #         ax4.axhline(y=2000, color='red', linestyle='--', label='允许最大应力 (2000 kPa)')
+    #         ax4.set_xlabel("Time (days)")
+    #         ax4.set_ylabel("σ_max (kPa)")
+    #         ax4.set_title("最大应力全年变化 (kPa)")
+    #         ax4.grid(True)
+    #         ax4.legend()
+    #         st.pyplot(fig4)
+    #     else:
+    #         st.info("结果文件中未找到最大应力数据")
+
+    # # 提供结果文件下载
+    # with io.BytesIO() as towrite:
+    #     df_plot.to_excel(towrite, index=False)
+    #     towrite.seek(0)
+    #     st.download_button(
+    #         label="下载全部模拟结果Excel到本地",
+    #         data=towrite.getvalue(),
+    #         file_name="能量桩数据download from streamlit.xlsx",
+    #         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    #     )
+    st.markdown(" **👇 点击以下卡片展开可视化结果** ")
+    # ---------- 第一部分：不同深度桩壁温度 ----------
+    with st.expander("🌡️ 不同深度桩壁温度全年变化", expanded=False):
+        temp_cols = [col for col in df_plot.columns if col.startswith('桩壁温度_')]
         if temp_cols:
             fig1, ax1 = plt.subplots(figsize=(6, 4))
             for col in temp_cols:
@@ -2402,7 +2504,7 @@ elif st.session_state['page'] == 9:
             st.info("结果文件中未找到不同深度桩壁温度数据")
 
     # ---------- 第二部分：进出口水温 ----------
-    with col2:
+    with st.expander("🚰 进出口水温全年变化", expanded=False):
         if 'T_in' in df_plot.columns or 'T_out' in df_plot.columns:
             fig2, ax2 = plt.subplots(figsize=(6, 4))
             if 'T_in' in df_plot.columns:
@@ -2418,11 +2520,8 @@ elif st.session_state['page'] == 9:
         else:
             st.info("结果文件中未找到进出口水温数据")
 
-    # 创建第二行两列
-    col3, col4 = st.columns(2)
-
-    # ---------- 第三部分：桩顶位移（mm） ----------
-    with col3:
+    # ---------- 第三部分：桩顶位移 ----------
+    with st.expander("📈 桩顶位移全年变化", expanded=False):
         if 'z_top' in df_plot.columns:
             fig3, ax3 = plt.subplots(figsize=(6, 4))
             ax3.plot(hours / 24, df_plot['z_top'], label='桩顶位移')
@@ -2437,7 +2536,7 @@ elif st.session_state['page'] == 9:
             st.info("结果文件中未找到桩顶位移数据")
 
     # ---------- 第四部分：最大应力 ----------
-    with col4:
+    with st.expander("🧱 最大应力全年变化", expanded=False):
         if 'sigma_max' in df_plot.columns:
             fig4, ax4 = plt.subplots(figsize=(6, 4))
             ax4.plot(hours / 24, df_plot['sigma_max'], label='最大应力')
@@ -2451,16 +2550,18 @@ elif st.session_state['page'] == 9:
         else:
             st.info("结果文件中未找到最大应力数据")
 
-    # 提供结果文件下载
+    st.markdown('<span style="color:black; font-weight:bold;">- ⚠️ 请等待下方出现"📥 下载全部模拟结果 Excel"按钮后，再点击"下一页"进入经济性计算页面</span>', unsafe_allow_html=True)
+    # ---------- 下载按钮 ----------
     with io.BytesIO() as towrite:
         df_plot.to_excel(towrite, index=False)
         towrite.seek(0)
         st.download_button(
-            label="下载全部模拟结果Excel到本地",
+            label="📥 下载全部模拟结果 Excel",
             data=towrite.getvalue(),
             file_name="能量桩数据download from streamlit.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
     page_nav()
 
 
@@ -2468,9 +2569,57 @@ elif st.session_state['page'] == 10:
     if st.button('返回首页', key='back_home_X'):
         st.session_state['page'] = 0
         st.rerun()
+
+    st.sidebar.title("📘 LCOE 计算原理说明")
+    st.sidebar.markdown(
+    """
+**1️⃣ 什么是 LCOE？**  
+- **LCOE（Levelized Cost of Energy，平准化供能成本）** 表示系统在整个生命周期内，每单位能源产出的平均成本。  
+- 它综合考虑了 **初始投资（CAPEX）**、**运行维护成本（OPEX）**、**折旧成本** 以及 **总能量产出**。  
+- LCOE 能够直观反映不同设计方案的经济性，具有可比性和合理性。
+
+---
+
+**2️⃣ 计算公式**  
+
+$$
+LCOE = \\frac{LCC}{\\sum_{y=1}^{20} \\frac{Q_{annual,y}}{(1+\\gamma)^y}}
+= \\frac{CAPEX + \\sum_{y=1}^{20} \\frac{OPEX_y}{(1+\\gamma)^y}}
+{\\sum_{y=1}^{20} \\frac{Q_{annual,y}}{(1+\\gamma)^y}}
+$$
+
+- $CAPEX$ ：初始投资成本  
+- $OPEX_y$ ：第 $y$ 年运行维护成本  
+- $Q_{annual,y}$ ：第 $y$ 年的年能源产出  
+- $\gamma$ ：贴现率（通常取 5%）  
+- 评估周期：20 年（热泵系统典型寿命）
+
+---
+
+**3️⃣ 计算假设**  
+- 地基数目 $N$ 由结构工程需求确定，能量桩数量 $N_p \\leq N$；  
+- 土建造价 ($C_{digging}$ 和 $C_{pile}$) 固定，与 $N_p$ 无关；  
+- 因此 **CAPEX** 只考虑两部分：  
+  - **换热管造价**（与几何形状相关）；  
+  - **热泵造价**。  
+
+---
+
+**4️⃣ OPEX 的构成**  
+- **运行成本**：取决于热泵电力消耗，受 **建筑冷热负荷**、**瞬时 COP**（与流速 $v$ 有关）、**电价**影响；  
+- **维护成本**：按运行成本的约 **1%** 估算；  
+- 通过逐时动态仿真 → 获取全年耗电量 → 累积计算 **OPEX**。  
+
+---
+
+📌 **总结**：  
+LCOE 衡量了“单位能源产出的平均经济成本”，在优化设计中常用作经济性评价指标。
+"""
+)
+
     st.header("10. LCOE (平准化供能成本) 计算")
     st.markdown("""
-**本页内容：**
+**📊 本页内容：**
 - 根据模拟结果和经济参数计算能量桩系统的平准化供能（热和冷）成本 (LCOE)。
     """)
 
@@ -2485,7 +2634,7 @@ elif st.session_state['page'] == 10:
         s = params['s']
 
         # LCOE 计算参数
-        st.subheader("经济参数设定")
+        st.subheader("💰 经济参数设定")
 
         # 预定义管径和造价系数（5个选项）
         r_pile = [0.010, 0.0125, 0.016, 0.02, 0.025]  # 5个管径选项
@@ -2507,26 +2656,29 @@ elif st.session_state['page'] == 10:
         # 查找对应的价格，如果找不到则返回0或提示
         kd = r_pile_prices.get(rp, 0)
 
-        st.markdown("**管径及造价**")
+        st.markdown("**📏 管径及造价**")
         st.info(f"系统采用的管径 (rp): {rp} m")
         if kd > 0:
             st.info(f"对应的每米造价: {kd} 元/m")
         else:
             st.warning(f"未找到管径 {rp} m 对应的预设价格，请检查经济参数设置。")
+        HP_cost = st.number_input("**🔥 热泵初投资 (元)**", value=120000)
+        C_elec = st.number_input("**⚡ 电价 (元/kWh)**", value=0.57)
 
         st.markdown("---")
+        st.subheader("⚙️ 其他计算参数设定")
         col1, col2, col3 = st.columns(3)
         with col1:
-            HP_cost = st.number_input("热泵初投资 (元)", value=120000)
-            C_elec = st.number_input("电价 (元/kWh)", value=0.57)
-        with col2:
             lifetime = st.number_input("系统寿命 (年)", value=20, min_value=1, step=1)
+        with col2:
             gamma = st.number_input("折现率", value=0.05, format="%.2f")
         with col3:
             MPEX_ratio = st.number_input("年维护费用占运营费用比例", value=0.01, format="%.2f")
 
+        st.markdown("---")
+        st.subheader("🧮 计算")
         # 计算按钮
-        if st.button("计算LCOE", key="calculate_lcoe"):
+        if st.button("🔘 点击进行计算LCOE", key="calculate_lcoe"):
             st.subheader("LCOE计算过程")
 
             # ---- 基本检查 ----
@@ -2601,17 +2753,64 @@ elif st.session_state['page'] == 10:
     except Exception as e:
         st.error(f"计算时发生错误: {e}")
 
+    st.markdown('<span style="color:black; font-weight:bold;">- ⚠️ 请等待计算结果显示后，再点击"下一页"进入投资回收期计算</span>', unsafe_allow_html=True)
+
     page_nav()
 
 elif st.session_state['page'] == 11:
     if st.button('返回首页', key='back_home_X'):
         st.session_state['page'] = 0
         st.rerun()
+    st.sidebar.title("📘 投资回收期计算原理说明")
+    st.sidebar.markdown(
+    """
+**1️⃣ 什么是投资回收期 (Payback Period, PBP)?**  
+- 投资回收期表示初始投资通过节省的能源成本或收入回收所需的时间。  
+- 直观理解为：系统从投入运行开始，到累计节省的费用等于初始投资的时间长度。  
+- PBP 越短，投资回收越快，经济性越好。  
+
+---
+
+**2️⃣ 计算公式**  
+- **静态投资回收期（不考虑贴现）**：  
+$$
+PBP_{static} = \\frac{CAPEX}{CF_{annual}}
+$$
+其中：  
+- $CAPEX$ ：初始投资成本  
+- $CF_{annual}$ ：年度现金流 = 年度节省能源成本 - 年度运行维护成本
+- **动态投资回收期（考虑贴现）**：  
+$$
+PBP_{dynamic} = \min \left\{ n : \sum_{t=1}^{n} \\frac{CF_{annual}}{(1+\gamma)^t} \ge CAPEX \\right\}
+$$
+其中：  
+- $CF_{annual}$ ：年度现金流  
+- $\gamma$ ：贴现率  
+- $n$ ：达到投资回收所需年数  
+
+---
+
+**3️⃣ 常见替代能源参考价格（元/kWh）**  
+| 能源类型 | 单价参考 (元/kWh) | 来源 |
+|----------|-----------------|------|
+| 居民电价 | 0.6             | 国家发改委（2023） |
+| 天然气  | 0.75            | 中国石化能源数据（2023，折算热值约8.9 kWh/m³） |
+| 燃油    | 2.0             | 国家统计局能源统计年鉴（2023，折算热值约10 kWh/L） |
+| 热水/蒸汽 | 0.25          | 《城市热力能源价格标准》2022 |
+
+---
+
+📌 **总结**：  
+投资回收期提供了系统经济性直观评价指标，结合 LCOE 与替代能源价格，可以帮助决策者判断系统投资合理性。
+"""
+)
+
     st.header("11. 投资回收期计算")
     st.markdown("""
-**本页内容：**
-- 根据LCOE计算结果，计算系统的静态和动态投资回收期。
+**📊  本页内容：**
+- 根据LCOE计算中输入的部分计算参数及替代能源成本，计算系统的静态和动态投资回收期。
     """)
+
 
     # 检查是否有LCOE计算结果
     if 'lcoe_results' not in st.session_state:
@@ -2622,17 +2821,20 @@ elif st.session_state['page'] == 11:
     # 获取LCOE计算结果
     results = st.session_state['lcoe_results']
 
-    st.subheader("投资回收期参数设定")
-    col1, col2 = st.columns(2)
-    with col1:
-        C_alt = st.number_input("替代能源成本 (元/kWh)", value=0.75,
-                                help="若不用地源热泵，使用其他能源的成本")
-    with col2:
-        st.write(f"系统寿命: {results['lifetime']} 年")
-        st.write(f"折现率: {results['gamma'] * 100:.1f}%")
+    st.subheader("⚙️ 投资回收期参数设定")
+    st.info(f"系统寿命（根据LCOE计算中输入）: {results['lifetime']} 年")
+    st.info(f"折现率（根据LCOE计算中输入）: {results['gamma'] * 100:.1f}%")
+    # st.write(f"系统寿命: {results['lifetime']} 年")
+    # st.write(f"折现率: {results['gamma'] * 100:.1f}%")
+        
+    C_alt = st.number_input("**🔥 替代能源成本 (元/kWh)**", value=0.75,
+                            help="若不用地源热泵，使用其他能源的成本")
 
-    if st.button("计算投资回收期", key="calculate_payback"):
-        st.subheader("投资回收期计算过程")
+    st.markdown("---")
+
+    st.subheader("🧮 计算")
+
+    if st.button("🔘 点击计算投资回收期", key="calculate_payback"):
 
         # ---- 提取参数 ----
         rp = results['rp']
@@ -2644,7 +2846,8 @@ elif st.session_state['page'] == 11:
         gamma = results['gamma']
 
         # ---- 投资回收期计算 ----
-        st.write("#  投资回收期计算 ")
+        st.write("###  投资回收期计算过程 ")
+        st.write(f"初投资 CAPEX: {CAPEX:,.0f} CNY")
         st.write(f"替代能源成本 C_alt: {C_alt} 元/kWh")
 
         # 计算年度现金流
@@ -2680,21 +2883,22 @@ elif st.session_state['page'] == 11:
         st.write(f"动态投资回收期(折现率{gamma:.0%}): {payback_dynamic:.2f} 年")
 
         # 结果输出
-        st.write(f"CAPEX: {CAPEX:,.0f} CNY")
-        st.write(f"年度净现金流: {CF_annual:,.0f} CNY/年")
-        st.write(f"静态投资回收期: {payback_static:.2f} 年")
-        st.write(f"动态投资回收期(折现率{gamma:.0%}): {payback_dynamic:.2f} 年")
-        st.write('CF_annual =', CF_annual)
-        st.write('CAPEX      =', CAPEX)
-        st.write('静态回收期 =', CAPEX / CF_annual if CF_annual > 0 else 'inf')
+        
+        # st.write(f"年度净现金流: {CF_annual:,.0f} CNY/年")
+        # st.write(f"静态投资回收期: {payback_static:.2f} 年")
+        # st.write(f"动态投资回收期(折现率{gamma:.0%}): {payback_dynamic:.2f} 年")
+        # st.write('CF_annual =', CF_annual)
+        # st.write('CAPEX      =', CAPEX)
+        # st.write('静态回收期 =', CAPEX / CF_annual if CF_annual > 0 else 'inf')
 
         st.success("投资回收期计算完成！")
+        st.markdown('<span style="color:black; font-weight:bold;">- ⚠️ 若回收期计算结果显示为"inf 年"，则表示在设定的系统寿命内无法实现回收</span>', unsafe_allow_html=True)
 
         # 提供详细结果下载
         result_text = f"""
         投资回收期分析结果
         管径: {rp} m
-        总投资 (CAPEX): {CAPEX:,.2f} 元
+        初投资 (CAPEX): {CAPEX:,.2f} 元
         年度净现金流: {CF_annual:,.2f} 元/年
         替代能源成本: {C_alt:.2f} 元/kWh
         ------------------------------------------
@@ -2748,26 +2952,88 @@ elif st.session_state['page'] == 12:
         from sklearn.ensemble import GradientBoostingRegressor
         from sklearn.preprocessing import MinMaxScaler
 
-        st.title("能量桩参数优化 - 模型选择")
-        st.markdown("""
-        **本页内容：**
-        - 选择使用预训练模型或进行自定义数据集训练新模型
-        - 提供管径对应关系参考
-        - 以螺旋管为例进行设计参数优化，优化空间为管径rp、桩数Np、流速v和螺距Lp
-        """)
-        st.markdown('<span style="color:red; font-weight:bold;">- 如果前面基于默认文件和参数进行了计算，此处可直接使用预训练模型进行优化</span>', unsafe_allow_html=True)
+        # ========== Sidebar: 代理模型说明 ==========
+        st.sidebar.title("📘 代理模型原理与使用说明")
+        st.sidebar.markdown(
+"""
+**1️⃣ 为什么需要代理模型？**  
+- 全年逐时动态仿真计算耗时较长，不适合直接用于优化。  
+- **代理模型（Surrogate Model）** 提供了一种近似方式，可以用较小的计算成本快速预测结果。  
 
-        # 管径对应关系表
-        st.subheader("管径对应关系")
-        pipe_data = {
-            "管径编号": [0, 1, 2, 3, 4, 5],
-            "管外半径(m)": [0.010, 0.0125, 0.016, 0.02, 0.025, 0.0315],
-            "管内半径(m)": [0.008, 0.0102, 0.013, 0.0162, 0.0202, 0.0252]
-        }
-        st.table(pd.DataFrame(pipe_data))
+---
+
+**2️⃣ GBR 模型原理**  
+- **GBR（Gradient Boosting Regressor, 梯度提升回归）**  
+- 基本思想：通过迭代训练多个弱学习器（如决策树），逐步降低残差，形成一个强预测模型。  
+- 数学形式：  
+$$
+\hat{Y} = f(X) = \sum_{m=1}^{M} \\nu \cdot h_m(X)
+$$
+其中 $h_m(X)$ 为基学习器，$\nu$ 为学习率。  
+
+---
+
+**3️⃣ 使用说明**  
+- **输入集合 $X$**：由采样得到的设计参数 (rp, Np, v, Lp)。  
+- **输出集合 $Y$**：逐时模拟得到的静态约束、动态约束和目标值。  
+- **训练过程**：使用 $(X, Y)$ 训练 GBR 模型，得到 $\hat{Y} = f(X)$。  
+- **应用场景**：在遗传算法 (GA) 优化中，用 $\hat{Y}$ 替代真实仿真，显著加快计算。  
+
+---
+📌 **总结**：代理模型是“快照版”的能量桩性能预测器，能在保证精度的同时极大加快优化速度。
+"""
+        )
+
+        st.title("能量桩参数优化")
+        st.header("代理模型建立与选择")
+        st.markdown('<span style="color:black; font-weight:bold;">- ⚠️ 需要在完整运行过功能一并获得计算结果后才能进行功能二的使用！！！</span>', unsafe_allow_html=True)
+        st.markdown("""
+        **📋 本页内容：**
+        - 提供管径参考表  
+        - 展示优化变量空间  
+        - 说明训练与使用预训练模型的方式  
+        - 展示代理模型与优化算法的结合
+        """)
+
+        with st.expander("📐 管径对应关系表"):
+            st.subheader("管径对应关系")
+            pipe_data = {
+                "管径编号": [0, 1, 2, 3, 4, 5],
+                "管外半径 (m)": [0.010, 0.0125, 0.016, 0.020, 0.025, 0.0315],
+                "管内半径 (m)": [0.008, 0.0102, 0.013, 0.0162, 0.0202, 0.0252]
+            }
+            st.table(pd.DataFrame(pipe_data))
+
+        with st.expander("🌀 优化空间设定"):
+            st.markdown("""
+            优化空间包含以下 **四个设计变量**：  
+            - **rp**：管径  
+            - **Np**：桩数  
+            - **v**：流速  
+            - **Lp**：螺距  
+            """)
+
+        with st.expander("📖 模型训练方式"):
+            st.markdown("""
+            - 可选择 **预训练模型**（若用户在功能一中全部使用默认参数完成计算，则可以直接使用预训练模型进行后续优化）。  
+            - 也可重新自定义数据集进行 **新模型训练**。  
+            """)
+
+        with st.expander("📈 样本生成与代理模型构建"):
+            st.markdown("""
+- 样本通过在优化空间中采样设计参数集合 $X$ 获得。  
+- 每组参数调用逐时模拟程序，得到对应的约束与目标集合 $Y$。  
+- 使用 **GBR 模型** 拟合，得到代理模型 $\hat{Y} = f(X)$。  
+            """)
+
+        with st.expander("🧬 遗传算法 (GA) 优化"):
+            st.markdown("""
+            - 在 GA 中调用代理模型进行快速预测，避免逐次仿真耗时。  
+            - 结合适应度函数，逐步逼近最优解。  
+            """)
 
         # 模型选择
-        st.subheader("模型选择")
+        st.subheader("⚙️ 模型选择")
         model_option = st.radio("请选择模型来源:",
                                 ("使用预训练模型", "进行自定义数据集采样和训练新模型"),
                                 index=0)
@@ -2953,11 +3219,88 @@ elif st.session_state['page'] == 12:
 
     # 功能二页面1：参数设置
     elif st.session_state.f2_page == 1:
-        from deap import creator, base, tools
-        st.title("能量桩参数优化 - 参数设置")
+        st.sidebar.title("📘 优化程序使用说明")
+        st.sidebar.markdown(
+"""
+**1️⃣ 模型选择**  
+- 若前面选择 **预训练模型**：在下拉菜单 **“请选择要使用的模型文件”** 中选择 `surrogate_os.pkl`。  
+- 若进行 **自定义模型训练**：请选择 `surrogate.pkl`。  
 
+---
+
+**2️⃣ 遗传算法 (GA) 原理参数**  
+- **种群大小 (Population size)**：每一代的候选解数量。  
+- **迭代次数 (Generations)**：算法进化的轮数。  
+- **交叉概率 (Crossover probability)**：个体间基因交换的概率，控制解的多样性。  
+- **变异概率 (Mutation probability)**：个体基因突变的概率，用于跳出局部最优。  
+- **锦标赛大小 (Tournament size)**：选择优良个体时的候选池大小。  
+
+---
+
+**3️⃣ 约束条件**  
+"""
+        )
+        
+        with st.sidebar.expander("a. 力学形变约束", expanded=False):
+            st.markdown(
+            """
+            - 差异沉降限值常见取值：$0.001DD \\sim 0.002DD$，$D$ 为桩间距。  
+            - 桩顶位移约束：  
+            $$
+            |z_{top}| \\leq 0.002DD
+            $$  
+            - C30 混凝土轴向抗拉强度：$2000 \\text{ kPa}$。  
+            """
+            )
+
+        with st.sidebar.expander("b. 换热流体流态约束", expanded=False):
+            st.markdown(
+"""
+- 流体必须保持湍流状态：  
+$$
+Re > 4000
+$$  
+- 体积流量范围：  
+$$
+0.1 \\leq q_v \\leq 3 \\; (m^3/h)
+$$  
+"""
+            )
+
+        with st.sidebar.expander("c. 进出口水温约束", expanded=False):
+            st.markdown(
+"""
+- 夏季制冷：机组流体最高入口温度 15-20℃。  
+- 冬季供热：机组最低入口温度 10-15℃。  
+- 综合约束：  
+$$
+T_{out,max} < 40, 
+$$  
+$$
+T_{out,min} > 5
+$$  
+"""
+            )
+
+        st.sidebar.markdown(
+"""
+--- 
+**4️⃣ 目标函数选择**  
+- 优化目标为 **最小化平准化供能成本 (LCOE)**：  
+$$
+\\min LCOE
+$$
+"""
+        )
+
+
+        from deap import creator, base, tools
+        st.title("能量桩参数优化")
+        st.subheader("优化程序参数设置")
+
+        st.subheader("📂 代理模型选择")
         model_file = st.selectbox(
-            "请选择要使用的模型文件:",
+            "**请选择要使用的模型文件:**",
             ("预训练模型 surrogate_os.pkl", "自定义模型 surrogate.pkl")
         )
         if model_file == "预训练模型 surrogate_os.pkl":
@@ -2980,7 +3323,7 @@ elif st.session_state['page'] == 12:
             st.error(f"模型文件加载失败: {e}")
 
         # 遗传算法参数设置
-        st.subheader("遗传算法参数设置")
+        st.subheader("🧬 遗传算法参数设置")
         col1, col2, col3 = st.columns(3)
         with col1:
             pop_size = st.number_input("种群大小", min_value=10, max_value=100, value=20)
@@ -3004,18 +3347,18 @@ elif st.session_state['page'] == 12:
         }
 
         # 约束条件设置
-        st.subheader("约束条件设置")
-        st.info("以下约束条件将用于优化过程")
+        st.subheader("🎯 约束条件设置")
+        st.markdown('<span style="color:black; font-weight:bold;">- ⚠️ 以下约束条件将用于优化过程！</span>', unsafe_allow_html=True)
 
-        st.markdown("**静态约束**")
+        st.markdown("**💚 静态约束**")
         col1, col2 = st.columns(2)
         with col1:
-            re_min = st.number_input("最小雷诺数", value=4000)
-        with col2:
             qv_min = st.number_input("最小体积流量(m³/h)", value=0.1)
-            qv_max = st.number_input("最大体积流量(m³/h)", value=3.0)
+            qv_max = st.number_input("最大体积流量(m³/h)", value=3.0)            
+        with col2:
+            re_min = st.number_input("最小雷诺数", value=4000)
 
-        st.markdown("**动态约束**")
+        st.markdown("**💙 动态约束**")
         col1, col2 = st.columns(2)
         with col1:
             z_top_max = st.number_input("最大桩顶位移(mm)", value=16.0)
@@ -3039,7 +3382,25 @@ elif st.session_state['page'] == 12:
     # 功能二页面2：优化运行
     elif st.session_state.f2_page == 2:
         from deap import creator, base, tools
-        st.title("能量桩参数优化 - 优化运行")
+        st.title("能量桩参数优化")
+        st.subheader("执行优化程序")
+
+        st.markdown("""
+    **📋 本页内容：**
+
+    1. **执行优化**  
+       - 点击下方按钮后，系统会根据上一页所设置的 **遗传算法参数** 与 **约束条件** 启动优化计算。
+
+    2. **优化过程可视化**  
+       - 动态展示每一代迭代过程中的 **LCOE 收敛情况**，帮助用户直观理解优化进展。  
+
+    3. **优化结果输出**  
+       - 🔗 **最优参数组合**：给出 rp、ri、Np、v、Lp 等设计变量的最佳取值。  
+       - 🎯 **优化目标**：输出最小化的 **LCOE**。  
+       - 🔑 **关键指标**：在最优解下，展示桩顶位移、流体流态、进出口温度等关键性能指标。  
+       - 📑 **约束检查**：说明最优解是否满足各类力学、流体及温度约束条件。
+    --- 
+    """)
 
         if not st.session_state.get('model_loaded', False):
             st.warning("请先加载或训练模型！")
@@ -3104,7 +3465,7 @@ elif st.session_state['page'] == 12:
             st.session_state.ga_initialized = True
 
         # 运行优化
-        if st.button("开始优化"):
+        if st.button(" 🟢点击进行开始优化"):            
             ga_params = st.session_state.ga_params
 
             # 创建进度条
@@ -3207,14 +3568,17 @@ elif st.session_state['page'] == 12:
 
             st.success("优化完成！")
             st.session_state.show_results = True
+            st.markdown("""
+        --- 
+        """)
 
         # 显示结果
         if st.session_state.get('show_results', False):
             result = st.session_state.optimization_result
-            st.subheader("优化结果")
+            st.subheader("📋 优化结果")
 
             # 显示最优参数组合
-            st.markdown("### 最优参数组合")
+            st.markdown("#### 🔗 最优参数组合")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("管径编号", result['best_solution'][0])
@@ -3226,11 +3590,11 @@ elif st.session_state['page'] == 12:
                 st.metric("螺距(m)", f"{result['best_solution'][3]:.3f}")
 
             # 显示优化目标
-            st.markdown("### 优化目标")
+            st.markdown("#### 🎯 优化目标")
             st.metric("最小LCOE(元/kWh)", f"{result['LCOE']:.2f}")
 
             # 显示其他关键指标
-            st.markdown("### 关键指标")
+            st.markdown("#### 🔑 关键指标")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("桩顶位移(mm)", f"{result['z_top']:.2f}")
@@ -3242,7 +3606,7 @@ elif st.session_state['page'] == 12:
                 st.metric("冬季出口水温(℃)", f"{result['T_out_min']:.2f}")
 
             # 显示约束条件满足情况
-            st.markdown("### 约束条件满足情况")
+            st.markdown("#### 📑 约束条件满足情况")
             constraints = st.session_state.constraints
 
             # 创建约束检查表
@@ -3333,7 +3697,8 @@ elif st.session_state['page'] == 12:
 
     # 功能二页面3：结果导出
     elif st.session_state.f2_page == 3:
-        st.title("能量桩参数优化 - 结果导出")
+        st.title("能量桩参数优化")
+        st.subheader("导出优化结果")
 
         if not st.session_state.get('show_results', False):
             st.warning("请先完成优化运行！")
@@ -3343,7 +3708,7 @@ elif st.session_state['page'] == 12:
         result = st.session_state.optimization_result
         constraints = st.session_state.constraints
 
-        st.subheader("优化结果摘要")
+        st.subheader("📋 优化结果摘要")
         # 管径数据表
         pipe_data = {
             "管径编号": [0, 1, 2, 3, 4, 5],
@@ -3354,16 +3719,27 @@ elif st.session_state['page'] == 12:
         # 取出最佳解对应的管径编号
         pipe_index = result['best_solution'][0]
         pipe_row = pipe_df.loc[pipe_df["管径编号"] == pipe_index].iloc[0]
-        
-        st.markdown("**最优LCOE:**")
-        st.write(f"{result['LCOE']:.2f} 元/kWh")
-        st.markdown("**最优参数组合如下:**")
-        st.write(f"管径编号 = {result['best_solution'][0]}, 外半径={pipe_row['管外半径(m)']} m, 内半径={pipe_row['管内半径(m)']} m")
-        st.write(f"能量桩数量 = {result['best_solution'][1]}")
-        st.write(f"流速 = {result['best_solution'][2]:.3f} m/s")
-        st.write(f"螺距 = {result['best_solution'][3]:.3f} m")
 
-        st.subheader("导出结果")
+        # LCOE 单独展示
+        with st.expander("👍 最优LCOE", expanded=True):
+            st.write(f"{result['LCOE']:.2f} 元/kWh")
+
+        # 最优参数组合放到 expander
+        with st.expander("🔗 最优参数组合详情", expanded=True):
+            st.write(f"管径编号 = {result['best_solution'][0]}, 外半径 = {pipe_row['管外半径(m)']} m, 内半径 = {pipe_row['管内半径(m)']} m")
+            st.write(f"能量桩数量 = {result['best_solution'][1]}")
+            st.write(f"流速 = {result['best_solution'][2]:.3f} m/s")
+            st.write(f"螺距 = {result['best_solution'][3]:.3f} m")
+        
+        # st.markdown("**最优LCOE:**")
+        # st.write(f"{result['LCOE']:.2f} 元/kWh")
+        # st.markdown("**最优参数组合如下:**")
+        # st.write(f"管径编号 = {result['best_solution'][0]}, 外半径={pipe_row['管外半径(m)']} m, 内半径={pipe_row['管内半径(m)']} m")
+        # st.write(f"能量桩数量 = {result['best_solution'][1]}")
+        # st.write(f"流速 = {result['best_solution'][2]:.3f} m/s")
+        # st.write(f"螺距 = {result['best_solution'][3]:.3f} m")
+
+        st.subheader("📄 导出结果")
 
         # 构造参数表
         result_df = pd.DataFrame({
@@ -3385,12 +3761,12 @@ elif st.session_state['page'] == 12:
         st.dataframe(result_df)
 
         # 导出选项
-        export_format = st.radio("选择导出格式:", ("CSV", "Excel", "文本报告"))
+        export_format = st.radio("**📌 选择导出格式:**", ("CSV", "Excel", "文本报告"))
 
         if export_format == "CSV":
             csv = result_df.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="下载CSV结果",
+                label="✅ 下载CSV结果",
                 data=csv,
                 file_name="energy_pile_optimization_results.csv",
                 mime="text/csv"
@@ -3461,7 +3837,7 @@ elif st.session_state['page'] == 12:
                 mime="text/plain"
             )
 
-        if st.button("重新开始优化"):
+        if st.button("🔂 重新开始优化"):
             # 重置优化状态
             keys_to_reset = ['ga_initialized', 'show_results', 'optimization_result']
             for key in keys_to_reset:
