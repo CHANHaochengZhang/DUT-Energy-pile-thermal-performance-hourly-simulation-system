@@ -44,7 +44,13 @@ def page_nav():
                     st.rerun()
         with col3:
             if st.session_state['page'] < total_pages - 1:
-                if st.button('下一页', key=f"next_{st.session_state['page']}"):
+                # 根据页面进度控制“下一页”可用性
+                can_go_next = True
+                # Page 2：必须提交参数（生成 session_state['params']）后才能进入下一页
+                if st.session_state['page'] == 2:
+                    can_go_next = 'params' in st.session_state and st.session_state['params'] is not None
+
+                if st.button('下一页', key=f"next_{st.session_state['page']}", disabled=not can_go_next):
                     st.session_state['page'] += 1
                     st.rerun()
         st.markdown("---")
@@ -69,7 +75,7 @@ def f3_page_nav():
                 st.button("下一页", on_click=lambda: st.session_state.update(f3_page=st.session_state.f3_page+1))
         st.markdown("---")
 
-st.set_page_config(layout="centered")
+st.set_page_config(layout="wide")
 
 #首页
 # if st.session_state['page'] == 0:
