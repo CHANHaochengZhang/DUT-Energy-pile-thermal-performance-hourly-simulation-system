@@ -77,6 +77,16 @@ def f3_page_nav():
 
 st.set_page_config(layout="wide")
 
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {
+            width: 420px;           /* 自定义宽度 */
+            min-width: 420px;       /* 防止被压缩 */
+            max-width: 420px;       /* 防止被拉伸 */
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 #首页
 # if st.session_state['page'] == 0:
 #     for k in list(st.session_state.keys()):
