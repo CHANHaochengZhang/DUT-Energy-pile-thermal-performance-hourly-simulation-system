@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from streamlit import session_state
 import random
 import os
@@ -10,8 +11,42 @@ random.seed(SEED)
 np.random.seed(SEED)
 os.environ['PYTHONHASHSEED'] = str(SEED)
 
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'sans-serif']  # 显示中文
-plt.rcParams['axes.unicode_minus'] = False    # 正常显示负号
+def _ensure_chinese_font():
+    preferred_font_names = [
+        'Noto Sans SC',
+        'Noto Sans CJK SC',
+        'Source Han Sans SC',
+        'Microsoft YaHei',
+        'SimHei',
+        'WenQuanYi Zen Hei',
+        'Arial Unicode MS',
+    ]
+
+    available = {f.name for f in font_manager.fontManager.ttflist}
+    chosen = None
+    for name in preferred_font_names:
+        if name in available:
+            chosen = name
+            break
+
+    if chosen is None:
+        try:
+            import urllib.request
+            fonts_dir = os.path.join(os.path.dirname(__file__), 'fonts')
+            os.makedirs(fonts_dir, exist_ok=True)
+            font_path = os.path.join(fonts_dir, 'NotoSansCJKsc-Regular.otf')
+            if not os.path.exists(font_path):
+                url = 'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf'
+                urllib.request.urlretrieve(url, font_path)
+            font_manager.fontManager.addfont(font_path)
+            chosen = 'Noto Sans CJK SC'
+        except Exception:
+            chosen = 'DejaVu Sans'
+
+    plt.rcParams['font.sans-serif'] = [chosen, 'DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False
+
+_ensure_chinese_font()
 import math
 from math import erfc
 from numba import jit
@@ -75,7 +110,7 @@ def f3_page_nav():
                 st.button("下一页", on_click=lambda: st.session_state.update(f3_page=st.session_state.f3_page+1))
         st.markdown("---")
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="centered")
 
 st.markdown("""
     <style>
